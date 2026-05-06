@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from src.core.question_processor import QuestionProcessor
 from src.core.prediction_engine import PredictionEngine
 from src.core.license_oracle import LicenseOracleGate
 from src.core.evidence_chain import EvidenceChain
-from src.core.community_calibration import CommunityCalibrationDNA  # 新增
+from src.core.community_calibration import CommunityCalibrationDNA
+from src.governance.evolutionary_guardrails import EvolutionaryGuardrails, ImmutableTraitViolation
+from src.governance.dao_voting import DAOVoting
 from src.utils.logging_config import get_logger
 
 logger = get_logger('openoracle.api')
@@ -16,16 +19,36 @@ question_processor = QuestionProcessor()
 prediction_engine = PredictionEngine()
 license_oracle = LicenseOracleGate()
 evidence_chain = EvidenceChain()
-community_calib = CommunityCalibrationDNA()  # 新增社区校准实例
+community_calib = CommunityCalibrationDNA()
+dao = DAOVoting()
+guard = EvolutionaryGuardrails(dao)
+
 
 class QuestionRequest(BaseModel):
     question: str
     source: str = "user_submitted"
 
+
 class PredictionResponse(BaseModel):
     status: str
     prediction: dict = None
     message: str = None
+
+
+class FeedbackRequest(BaseModel):
+    prediction_id: str
+    user_id: str
+    scores: dict
+    reasoning: str
+    new_evidence: list = []
+
+
+class ProposalRequest(BaseModel):
+    title: str
+    description: str
+    modifications: list
+    author: str
+
 
 @router.post("/predict", response_model=PredictionResponse)
 async def create_prediction(request: QuestionRequest):
@@ -54,8 +77,7 @@ async def create_prediction(request: QuestionRequest):
                 prediction=license_result.get("prediction")
             )
 
-        # 4. 社区校准 (新增)
-        # 使用校准后的概率作为最终输出，同时保留原始预测
+        # 4. 社区校准
         calibrated_report = community_calib.calibrate_prediction(prediction)
         prediction["calibration"] = calibrated_report
         prediction["calibrated_probability"] = calibrated_report["calibrated_prediction"]
@@ -80,3 +102,44 @@ async def create_prediction(request: QuestionRequest):
     except Exception as e:
         logger.exception("预测处理异常")
         raise HTTPException(status_code=500, detail="内部服务器错误")
+
+
+@router.post("/community/feedback")
+async def receive_feedback(feedback: FeedbackRequest):
+    """接收社区反馈，存入反馈池"""
+    try:
+        community_calib.feedback_pool.add_feedback(
+            feedback.prediction_id,
+            feedback.user_id,
+            feedback.scores,
+            feedback.reasoning,
+            feedback.new_evidence
+        )
+        return {"status": "received", "message": "反馈已记录"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/governance/propose")
+async def create_proposal(proposal: ProposalRequest):
+    """创建治理提案并启动投票"""
+    try:
+        vote_id = guard.propose_change(proposal.dict())
+        return {"status": "PROPOSED", "vote_id": vote_id}
+    except ImmutableTraitViolation as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+
+@router.get("/governance/votes")
+async def get_active_votes():
+    """获取所有投票状态"""
+    votes_summary = []
+    for vid, v in dao.votes.items():
+        votes_summary.append({
+            "vote_id": vid,
+            "title": v["title"],
+            "is_finalized": v["is_finalized"],
+            "deadline": v["deadline"],
+            "result": v.get("result")
+        })
+    return votes_summary
