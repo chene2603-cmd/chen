@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenOracle - 公开AI预测系统</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+    <!-- 头部导航 -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">
+                <span class="logo-icon">🔮</span>
+                OpenOracle
+                <span class="version">v1.0</span>
+            </h1>
+            <nav class="nav">
+                <button class="nav-btn active" onclick="switchTab('predict')">预测</button>
+                <button class="nav-btn" onclick="switchTab('history')">历史</button>
+                <button class="nav-btn" onclick="switchTab('leaderboard')">排行榜</button>
+                <button class="nav-btn" onclick="switchTab('governance')">治理</button>
+                <button class="nav-btn" onclick="switchTab('about')">关于</button>
+            </nav>
+            <div class="wallet-section">
+                <button id="connectWalletBtn" class="btn-wallet" onclick="connectWallet()">
+                    🔗 连接钱包
+                </button>
+                <span id="walletAddress" class="wallet-address"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main container">
+        
+        <!-- 预测面板 -->
+        <section id="tab-predict" class="tab-content active">
+            <div class="card">
+                <h2>提出你的预测问题</h2>
+                <p class="subtitle">让AI在阳光下运行，每个预测都可追溯、可验证、可挑战</p>
+                
+                <div class="predict-form">
+                    <div class="input-group">
+                        <textarea 
+                            id="questionInput" 
+                            placeholder="例如：2026年比特币价格会突破10万美元吗？"
+                            rows="3"
+                            maxlength="500"
+                        ></textarea>
+                        <span class="char-count"><span id="charCount">0</span>/500</span>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button id="submitBtn" class="btn-primary" onclick="submitQuestion()">
+                            🚀 生成预测
+                        </button>
+                        <button class="btn-secondary" onclick="clearInput()">
+                            ✕ 清空
+                        </button>
+                    </div>
+                    
+                    <!-- 加载动画 -->
+                    <div id="loadingSpinner" class="loading-spinner hidden">
+                        <div class="spinner"></div>
+                        <p>AI正在进行多智能体推理...</p>
+                    </div>
+                </div>
+                
+                <!-- 预测结果 -->
+                <div id="predictionResult" class="prediction-result hidden">
+                    <div class="result-header">
+                        <h3>📊 预测结果</h3>
+                        <span id="predictionStatus" class="badge"></span>
+                    </div>
+                    
+                    <div class="result-body">
+                        <!-- 概率展示 -->
+                        <div class="probability-section">
+                            <div class="prob-main">
+                                <span class="prob-label">预测概率</span>
+                                <span id="probValue" class="prob-value">--</span>
+                            </div>
+                            <div class="prob-bar-container">
+                                <div id="probBar" class="prob-bar"></div>
+                            </div>
+                            <div class="prob-details">
+                                <span>置信区间: <span id="confidenceInterval">--</span></span>
+                                <span>不确定性: <span id="uncertainty">--</span></span>
+                            </div>
+                        </div>
+                        
+                        <!-- 智能体分析 -->
+                        <div class="agents-section">
+                            <h4>🤖 多智能体分析</h4>
+                            <div id="agentsList" class="agents-list"></div>
+                        </div>
+                        
+                        <!-- 推理过程 -->
+                        <div class="reasoning-section">
+                            <h4>💭 综合推理</h4>
+                            <p id="reasoningText">--</p>
+                        </div>
+                        
+                        <!-- 证��链 -->
+                        <div class="evidence-section">
+                            <h4>🔗 证据链</h4>
+                            <div id="evidenceChain" class="evidence-chain"></div>
+                        </div>
+                        
+                        <!-- 社区校准 -->
+                        <div class="calibration-section">
+                            <h4>👥 社区校准</h4>
+                            <div id="calibrationInfo">暂无社区反馈</div>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="result-actions">
+                            <button class="btn-secondary" onclick="sharePrediction()">📤 分享</button>
+                            <button class="btn-secondary" onclick="submitFeedback()">💬 提供反馈</button>
+                            <button class="btn-secondary" onclick="verifyOnChain()">⛓️ 链上验证</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 历史记录 -->
+        <section id="tab-history" class="tab-content">
+            <div class="card">
+                <h2>预测历史</h2>
+                <div id="historyList" class="history-list">
+                    <p class="empty-state">暂无预测记录</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 排行榜 -->
+        <section id="tab-leaderboard" class="tab-content">
+            <div class="card">
+                <h2>预测排行榜</h2>
+                <p class="subtitle">基于Brier评分的预测准确度排名</p>
+                <table class="leaderboard-table" id="leaderboardTable">
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>地址</th>
+                            <th>Brier分数</th>
+                            <th>预测数量</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody">
+                        <tr><td colspan="4">暂无数据</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+        <!-- 治理面板 -->
+        <section id="tab-governance" class="tab-content">
+            <div class="card">
+                <h2>DAO 治理</h2>
+                <div class="governance-tabs">
+                    <button class="gov-tab active" onclick="switchGovTab('proposals')">提案</button>
+                    <button class="gov-tab" onclick="switchGovTab('create')">创建提案</button>
+                </div>
+                
+                <div id="gov-proposals" class="gov-panel active">
+                    <div id="proposalsList">
+                        <p class="empty-state">暂无活跃提案</p>
+                    </div>
+                </div>
+                
+                <div id="gov-create" class="gov-panel">
+                    <div class="form-group">
+                        <label>提案标题</label>
+                        <input type="text" id="proposalTitle" placeholder="例如：增加新的预测智能体">
+                    </div>
+                    <div class="form-group">
+                        <label>提案描述</label>
+                        <textarea id="proposalDesc" rows="4" placeholder="详细描述你的提案..."></textarea>
+                    </div>
+                    <button class="btn-primary" onclick="createProposal()">提交提案</button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 关于 -->
+        <section id="tab-about" class="tab-content">
+            <div class="card">
+                <h2>关于 OpenOracle</h2>
+                <div class="about-content">
+                    <p>OpenOracle 是一个公开的AI预测系统，基于以下核心原则：</p>
+                    <ul class="principles-list">
+                        <li>✅ 可回溯 - 所有预测必须可回溯</li>
+                        <li>✅ 可证伪 - 所有预测必须可证伪</li>
+                        <li>✅ 可解释 - 所有推理必须可解释</li>
+                        <li>✅ 透明 - 全流程公开透明</li>
+                        <li>✅ 反审查 - 不隐藏失败预测</li>
+                    </ul>
+                    <p class="genesis-quote">
+                        "预测的权威不应来自神秘，而应来自透明"<br>
+                        — OpenOracle 创世宣言
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>OpenOracle v1.0 | 让预测在阳光下运行，让AI在监督中成长</p>
+    </footer>
+
+    <script src="app.js"></script>
+    <script src="web3_integration.js"></script>
+</body>
+</html>
