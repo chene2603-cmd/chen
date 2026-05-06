@@ -1,0 +1,9 @@
+require("@nomiclabs/hardhat-waffle");
+
+module.exports = {
+  solidity: "0.8.19",
+  networks: {
+    hardhat: {},
+    // 添加测试网或主网配置
+  },
+};
