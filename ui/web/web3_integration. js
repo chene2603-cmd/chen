@@ -1,0 +1,67 @@
+// Web3 集成：与 OpenOracle 合约交互
+
+const CONTRACT_ADDRESSES = {
+    verification: '0x...',  // 部署后替换
+    token: '0x...'
+};
+
+const VERIFICATION_ABI = [
+    "function submitPrediction(string,uint256,uint256,uint256,bytes32) external",
+    "function getPredictors(string) view returns (address[])",
+    "function getBrierScores(string,address[]) view returns (int256[])"
+];
+
+const TOKEN_ABI = [
+    "function rewardUser(address,uint8,uint256) external",
+    "function getReputation(address) view returns (uint256)"
+];
+
+let verificationContract = null;
+let tokenContract = null;
+
+async function initContracts() {
+    if (typeof window.ethereum !== 'undefined') {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        
+        verificationContract = new ethers.Contract(
+            CONTRACT_ADDRESSES.verification,
+            VERIFICATION_ABI,
+            signer
+        );
+        
+        tokenContract = new ethers.Contract(
+            CONTRACT_ADDRESSES.token,
+            TOKEN_ABI,
+            signer
+        );
+    }
+}
+
+// 提交预测上链
+async function submitPredictionOnChain(questionId, probability, ciLower, ciUpper, evidenceHash) {
+    if (!verificationContract) await initContracts();
+    
+    try {
+        const tx = await verificationContract.submitPrediction(
+            questionId,
+            Math.floor(probability * 1e6),
+            Math.floor(ciLower * 1e6),
+            Math.floor(ciUpper * 1e6),
+            ethers.utils.formatBytes32String(evidenceHash)
+        );
+        await tx.wait();
+        console.log('预测已上链，交易哈希:', tx.hash);
+        return tx.hash;
+    } catch (error) {
+        console.error('上链失败:', error);
+        throw error;
+    }
+}
+
+// 页面加载时初始化
+window.addEventListener('load', () => {
+    if (walletAddress) {
+        initContracts().catch(console.error);
+    }
+});
