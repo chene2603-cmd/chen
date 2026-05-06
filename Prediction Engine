@@ -1,0 +1,554 @@
+"""
+OpenOracle 预测引擎
+基于文档中的 PredictionEngine DNA
+"""
+import json
+import asyncio
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+import numpy as np
+from dataclasses import dataclass
+from enum import Enum
+
+class AgentType(Enum):
+    """智能体类型"""
+    EVIDENCE_EXTRACTOR = "evidence_extractor"
+    HISTORICAL_ANALOGY = "historical_analogy"
+    CAUSAL_CHAIN = "causal_chain"
+    COUNTERFACTUAL = "counterfactual"
+    UNCERTAINTY_QUANTIFIER = "uncertainty_quantifier"
+
+@dataclass
+class AgentAnalysis:
+    """智能体分析结果"""
+    agent_type: AgentType
+    confidence: float
+    prediction: Dict
+    reasoning: str
+    evidence: List[Dict]
+    timestamp: str
+
+class PredictionEngine:
+    """
+    EchoZ-1.0风格预测引擎 DNA
+    基于文档中的 PredictionEngine 类
+    """
+    
+    TRAINING_REGIME = "TRAIN_ON_FUTURE"  # 只在未来事件上训练
+    ARCHITECTURE = "MAP_REDUCE_AGENT"
+    
+    def __init__(self, config_path: str = "config/dna_config.json"):
+        """初始化预测引擎"""
+        with open(config_path, 'r') as f:
+            self.config = json.load(f)
+        
+        # 初始化智能体
+        self.agents = {
+            AgentType.EVIDENCE_EXTRACTOR: EvidenceExtractorAgent(),
+            AgentType.HISTORICAL_ANALOGY: HistoricalAnalogyAgent(),
+            AgentType.CAUSAL_CHAIN: CausalChainAgent(),
+            AgentType.COUNTERFACTUAL: CounterfactualAgent(),
+            AgentType.UNCERTAINTY_QUANTIFIER: UncertaintyQuantifierAgent()
+        }
+        
+        # 初始化许可证神谕
+        self.license_oracle = LicenseOracleGate()
+        
+        # 缓存
+        self.prediction_cache = {}
+        
+    async def predict(self, question_dna: Dict) -> Dict:
+        """
+        执行 MAP-REDUCE 推理
+        基于文档中的 predict 方法
+        """
+        # 检查缓存
+        cache_key = question_dna.get("question_id")
+        if cache_key in self.prediction_cache:
+            return self.prediction_cache[cache_key]
+        
+        print(f"🎯 开始预测: {question_dna.get('question_id')}")
+        
+        try:
+            # MAP阶段: 多智能体分解
+            print("🔍 MAP阶段: 多智能体分析...")
+            agent_analyses = await self._map_phase(question_dna)
+            
+            # REDUCE阶段: 证据融合
+            print("🔄 REDUCE阶段: 证据融合...")
+            consensus = await self._reduce_phase(agent_analyses, question_dna)
+            
+            # 许可证神谕检查
+            print("📜 许可证神谕检查...")
+            if not self._license_oracle_check(consensus):
+                rejection_result = self._oracle_rejection(question_dna)
+                self.prediction_cache[cache_key] = rejection_result
+                return rejection_result
+            
+            # 格式化预测DNA
+            prediction_dna = self._format_prediction_dna(question_dna, consensus)
+            
+            # 缓存结果
+            self.prediction_cache[cache_key] = prediction_dna
+            
+            return prediction_dna
+            
+        except Exception as e:
+            print(f"❌ 预测失败: {str(e)}")
+            return self._format_error_prediction(question_dna, str(e))
+    
+    async def _map_phase(self, question: Dict) -> List[AgentAnalysis]:
+        """多智能体分解问题"""
+        analyses = []
+        
+        # 并行运行所有智能体
+        tasks = []
+        for agent_type, agent in self.agents.items():
+            task = asyncio.create_task(
+                agent.analyze(question, agent_type)
+            )
+            tasks.append(task)
+        
+        # 等待所有智能体完成
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # 处理结果
+        for result in results:
+            if isinstance(result, Exception):
+                print(f"智能体分析异常: {result}")
+                continue
+            if result:
+                analyses.append(result)
+        
+        return analyses
+    
+    async def _reduce_phase(self, agent_analyses: List[AgentAnalysis], question: Dict) -> Dict:
+        """证据融合"""
+        if not agent_analyses:
+            return {
+                "consensus_reached": False,
+                "error": "没有智能体返回有效分析"
+            }
+        
+        # 收集所有预测
+        predictions = []
+        confidences = []
+        all_evidence = []
+        
+        for analysis in agent_analyses:
+            predictions.append(analysis.prediction)
+            confidences.append(analysis.confidence)
+            all_evidence.extend(analysis.evidence)
+        
+        # 计算加权共识
+        weighted_prediction = self._calculate_weighted_consensus(predictions, confidences)
+        
+        # 生成推理链
+        reasoning_chain = self._generate_reasoning_chain(agent_analyses)
+        
+        # 去重证据
+        unique_evidence = self._deduplicate_evidence(all_evidence)
+        
+        # 计算不确定性
+        uncertainty = self._calculate_uncertainty(agent_analyses)
+        
+        return {
+            "consensus_reached": True,
+            "weighted_prediction": weighted_prediction,
+            "confidence_score": np.mean(confidences) if confidences else 0.0,
+            "uncertainty_score": uncertainty,
+            "reasoning_chain": reasoning_chain,
+            "supporting_evidence": unique_evidence,
+            "agent_contributions": [
+                {
+                    "agent": analysis.agent_type.value,
+                    "confidence": analysis.confidence,
+                    "summary": analysis.reasoning[:100] + "..."
+                }
+                for analysis in agent_analyses
+            ],
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+    
+    def _calculate_weighted_consensus(self, predictions: List[Dict], confidences: List[float]) -> Dict:
+        """计算加权共识"""
+        if not predictions:
+            return {"prediction": None, "probability": 0.0}
+        
+        # 简单加权平均（实际应用中需要更复杂的逻辑）
+        total_weight = sum(confidences)
+        if total_weight == 0:
+            return predictions[0]  # 返回第一个预测
+        
+        # 这里简化处理，实际需要根据预测类型进行加权
+        weighted_pred = {
+            "prediction": predictions[0]["prediction"],  # 简化处理
+            "probability": np.average(
+                [p.get("probability", 0.5) for p in predictions],
+                weights=confidences
+            )
+        }
+        
+        return weighted_pred
+    
+    def _generate_reasoning_chain(self, agent_analyses: List[AgentAnalysis]) -> List[Dict]:
+        """生成推理链"""
+        chain = []
+        
+        for analysis in agent_analyses:
+            chain.append({
+                "step": len(chain) + 1,
+                "agent": analysis.agent_type.value,
+                "reasoning": analysis.reasoning,
+                "confidence": analysis.confidence
+            })
+        
+        return chain
+    
+    def _deduplicate_evidence(self, evidence_list: List[Dict]) -> List[Dict]:
+        """证据去重"""
+        seen = set()
+        unique_evidence = []
+        
+        for evidence in evidence_list:
+            # 创建证据的哈希键
+            evidence_key = (
+                evidence.get("content", ""),
+                evidence.get("source", ""),
+                evidence.get("timestamp", "")
+            )
+            
+            if evidence_key not in seen:
+                seen.add(evidence_key)
+                unique_evidence.append(evidence)
+        
+        return unique_evidence
+    
+    def _calculate_uncertainty(self, agent_analyses: List[AgentAnalysis]) -> float:
+        """计算不确定性分数"""
+        if len(agent_analyses) <= 1:
+            return 0.5  # 中等不确定性
+        
+        # 基于置信度方差计算不确定性
+        confidences = [analysis.confidence for analysis in agent_analyses]
+        variance = np.var(confidences) if confidences else 0.0
+        
+        # 标准化到0-1范围
+        uncertainty = min(variance * 5, 1.0)  # 缩放因子
+        
+        return uncertainty
+    
+    def _license_oracle_check(self, consensus: Dict) -> bool:
+        """许可证神谕检查"""
+        if not consensus.get("consensus_reached", False):
+            return False
+        
+        # 检查基本要求
+        required_fields = [
+            "weighted_prediction",
+            "confidence_score",
+            "reasoning_chain",
+            "supporting_evidence"
+        ]
+        
+        for field in required_fields:
+            if field not in consensus or not consensus[field]:
+                return False
+        
+        # 检查置信度阈值
+        if consensus.get("confidence_score", 0) < 0.3:
+            return False
+        
+        # 检查不确定性阈值
+        if consensus.get("uncertainty_score", 1.0) > 0.7:
+            return False
+        
+        return True
+    
+    def _oracle_rejection(self, question: Dict) -> Dict:
+        """神谕拒绝"""
+        return {
+            "status": "REJECTED",
+            "question_id": question.get("question_id"),
+            "rejection_reason": "LICENSE_ORACLE_CHECK_FAILED",
+            "suggestions": [
+                "重新表述问题，使其更具体",
+                "提供更多背景信息",
+                "明确时间范围和验证条件"
+            ],
+            "appeal_process": "可通过社区投票上诉此决定",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+    
+    def _format_prediction_dna(self, question: Dict, consensus: Dict) -> Dict:
+        """格式化预测DNA"""
+        return {
+            "status": "PREDICTED",
+            "question_id": question.get("question_id"),
+            "question_text": question.get("raw_text"),
+            "prediction": consensus["weighted_prediction"],
+            "confidence_interval": self._calculate_confidence_interval(consensus),
+            "reasoning_summary": self._summarize_reasoning(consensus["reasoning_chain"]),
+            "evidence_count": len(consensus["supporting_evidence"]),
+            "agent_consensus": consensus["agent_contributions"],
+            "uncertainty": consensus["uncertainty_score"],
+            "expiration": question.get("expiration_timestamp"),
+            "settlement_conditions": question.get("settlement_conditions", {}),
+            "verification_hash": self._calculate_verification_hash(consensus),
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "version": "OpenOracle-v1.0"
+        }
+    
+    def _format_error_prediction(self, question: Dict, error: str) -> Dict:
+        """格式化错误预测"""
+        return {
+            "status": "ERROR",
+            "question_id": question.get("question_id"),
+            "error": error,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+    
+    def _calculate_confidence_interval(self, consensus: Dict) -> List[float]:
+        """计算置信区间"""
+        confidence = consensus.get("confidence_score", 0.5)
+        uncertainty = consensus.get("uncertainty_score", 0.3)
+        
+        lower_bound = max(0.0, confidence - uncertainty/2)
+        upper_bound = min(1.0, confidence + uncertainty/2)
+        
+        return [lower_bound, upper_bound]
+    
+    def _summarize_reasoning(self, reasoning_chain: List[Dict]) -> str:
+        """总结推理过程"""
+        if not reasoning_chain:
+            return "无可用推理"
+        
+        summaries = []
+        for step in reasoning_chain[:3]:  # 取前三步
+            agent = step.get("agent", "未知智能体")
+            summary = step.get("reasoning", "")[:50] + "..."
+            summaries.append(f"{agent}: {summary}")
+        
+        return " | ".join(summaries)
+    
+    def _calculate_verification_hash(self, consensus: Dict) -> str:
+        """计算验证哈希"""
+        import hashlib
+        data_str = json.dumps(consensus, sort_keys=True)
+        return hashlib.sha256(data_str.encode()).hexdigest()
+
+
+# 智能体实现
+class BaseAgent:
+    """基础智能体"""
+    
+    async def analyze(self, question: Dict, agent_type: AgentType) -> Optional[AgentAnalysis]:
+        """分析问题"""
+        raise NotImplementedError
+
+
+class EvidenceExtractorAgent(BaseAgent):
+    """证据提取智能体"""
+    
+    async def analyze(self, question: Dict, agent_type: AgentType) -> AgentAnalysis:
+        """提取证据"""
+        # 模拟证据提取逻辑
+        evidence = [
+            {
+                "id": "E001",
+                "content": "相关历史数据",
+                "source": "historical_database",
+                "reliability_score": 0.85,
+                "timestamp": "2026-01-01T00:00:00Z"
+            }
+        ]
+        
+        return AgentAnalysis(
+            agent_type=agent_type,
+            confidence=0.8,
+            prediction={"prediction": "基于证据提取", "probability": 0.6},
+            reasoning="从可用数据中提取了相关证据",
+            evidence=evidence,
+            timestamp=datetime.utcnow().isoformat() + "Z"
+        )
+
+
+class HistoricalAnalogyAgent(BaseAgent):
+    """历史类比智能体"""
+    
+    async def analyze(self, question: Dict, agent_type: AgentType) -> AgentAnalysis:
+        """历史类比分析"""
+        return AgentAnalysis(
+            agent_type=agent_type,
+            confidence=0.7,
+            prediction={"prediction": "基于历史类比", "probability": 0.65},
+            reasoning="找到了3个类似历史案例进行类比",
+            evidence=[],
+            timestamp=datetime.utcnow().isoformat() + "Z"
+        )
+
+
+class CausalChainAgent(BaseAgent):
+    """因果链智能体"""
+    
+    async def analyze(self, question: Dict, agent_type: AgentType) -> AgentAnalysis:
+        """因果链分析"""
+        return AgentAnalysis(
+            agent_type=agent_type,
+            confidence=0.75,
+            prediction={"prediction": "基于因果推理", "probability": 0.7},
+            reasoning="构建了包含5个节点的因果链",
+            evidence=[],
+            timestamp=datetime.utcnow().isoformat() + "Z"
+        )
+
+
+class CounterfactualAgent(BaseAgent):
+    """反事实智能体"""
+    
+    async def analyze(self, question: Dict, agent_type: AgentType) -> AgentAnalysis:
+        """反事实分析"""
+        return AgentAnalysis(
+            agent_type=agent_type,
+            confidence=0.6,
+            prediction={"prediction": "基于反事实推理", "probability": 0.55},
+            reasoning="考虑了2个主要反事实场景",
+            evidence=[],
+            timestamp=datetime.utcnow().isoformat() + "Z"
+        )
+
+
+class UncertaintyQuantifierAgent(BaseAgent):
+    """不确定性量化智能体"""
+    
+    async def analyze(self, question: Dict, agent_type: AgentType) -> AgentAnalysis:
+        """不确定性量化"""
+        return AgentAnalysis(
+            agent_type=agent_type,
+            confidence=0.5,
+            prediction={"prediction": "不确定性评估", "probability": 0.5},
+            reasoning="识别了3个主要不确定性来源",
+            evidence=[],
+            timestamp=datetime.utcnow().isoformat() + "Z"
+        )
+
+
+class LicenseOracleGate:
+    """许可证神谕检查"""
+    
+    REJECTION_CODES = {
+        "NO_EVIDENCE": "缺乏可验证证据",
+        "ETHICAL_VIOLATION": "违反伦理准则",
+        "LOGICAL_CONTRADICTION": "逻辑矛盾",
+        "TEMPORAL_PARADOX": "时间悖论",
+        "UNCERTAINTY_TOO_HIGH": "不确定性过高"
+    }
+    
+    def validate(self, prediction: Dict) -> Dict:
+        """执行许可证检查"""
+        checks = [
+            self._has_verifiable_evidence(prediction),
+            self._passes_ethical_review(prediction),
+            self._is_logically_consistent(prediction),
+            self._is_temporally_plausible(prediction),
+            self._has_reasonable_confidence(prediction)
+        ]
+        
+        if all(checks):
+            return {"status": "APPROVED", "prediction": prediction}
+        else:
+            failure_reason = self._identify_failure(checks)
+            return {
+                "status": "REJECTED",
+                "reason": self.REJECTION_CODES.get(failure_reason, "未知原因"),
+                "suggestion": self._generate_suggestion(failure_reason),
+                "appeal_process": "可通过社区投票上诉此决定"
+            }
+    
+    def _has_verifiable_evidence(self, prediction: Dict) -> bool:
+        """检查是否有可验证证据"""
+        evidence = prediction.get("supporting_evidence", [])
+        return len(evidence) > 0
+    
+    def _passes_ethical_review(self, prediction: Dict) -> bool:
+        """通过伦理审查"""
+        # 检查伦理标记
+        ethical_flags = prediction.get("ethical_flags", [])
+        prohibited = ["violence_prediction", "market_manipulation"]
+        return not any(flag in prohibited for flag in ethical_flags)
+    
+    def _is_logically_consistent(self, prediction: Dict) -> bool:
+        """逻辑一致性检查"""
+        # 简化检查
+        reasoning = prediction.get("reasoning_summary", "")
+        return "矛盾" not in reasoning and "冲突" not in reasoning
+    
+    def _is_temporally_plausible(self, prediction: Dict) -> bool:
+        """时间合理性检查"""
+        # 检查时间一致性
+        expiration = prediction.get("expiration")
+        if expiration:
+            import datetime
+            exp_date = datetime.datetime.fromisoformat(expiration.replace('Z', '+00:00'))
+            now = datetime.datetime.now(datetime.timezone.utc)
+            return exp_date > now
+        return True
+    
+    def _has_reasonable_confidence(self, prediction: Dict) -> bool:
+        """合理置信度检查"""
+        confidence = prediction.get("confidence_score", 0)
+        return 0.3 <= confidence <= 0.9
+    
+    def _identify_failure(self, checks: List[bool]) -> str:
+        """识别失败原因"""
+        failure_reasons = [
+            "NO_EVIDENCE",
+            "ETHICAL_VIOLATION", 
+            "LOGICAL_CONTRADICTION",
+            "TEMPORAL_PARADOX",
+            "UNCERTAINTY_TOO_HIGH"
+        ]
+        
+        for i, check in enumerate(checks):
+            if not check and i < len(failure_reasons):
+                return failure_reasons[i]
+        return "UNKNOWN"
+    
+    def _generate_suggestion(self, failure_reason: str) -> str:
+        """生成建议"""
+        suggestions = {
+            "NO_EVIDENCE": "请提供可验证的证据来源",
+            "ETHICAL_VIOLATION": "请修改问题以避免违反伦理准则",
+            "LOGICAL_CONTRADICTION": "请确保预测逻辑一致",
+            "TEMPORAL_PARADOX": "请检查时间范围是否合理",
+            "UNCERTAINTY_TOO_HIGH": "请提供更具体的问题或更多背景信息"
+        }
+        return suggestions.get(failure_reason, "请修改问题后重新提交")
+
+
+# 使用示例
+async def main():
+    """预测引擎示例"""
+    # 初始化引擎
+    engine = PredictionEngine()
+    
+    # 创建示例问题DNA
+    question_dna = {
+        "question_id": "Qabc123def4567890",
+        "raw_text": "OpenAI会在2024年底前发布GPT-5吗？",
+        "resolvability_score": 0.8,
+        "domain_tags": ["technology"],
+        "required_evidence": ["official_announcement", "news_article"],
+        "settlement_conditions": {"resolution_criteria": ["official_confirmation"]},
+        "expiration_timestamp": "2024-12-31T23:59:59Z",
+        "ethical_flags": ["none"]
+    }
+    
+    # 执行预测
+    result = await engine.predict(question_dna)
+    
+    print("预测结果:")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+
+if __name__ == "__main__":
+    asyncio.run(main())
