@@ -1,0 +1,77 @@
+# ==============================
+# Python
+# ==============================
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+*.egg
+venv/
+.venv
+env/
+.env
+*.so
+
+# 日志文件
+logs/
+*.log
+
+# 数据文件
+data/
+*.db
+*.sqlite3
+
+# 敏感配置
+config/local.yaml
+config/dna_config.local.json
+*.pem
+*.key
+
+# ==============================
+# Node / Hardhat / Solidity
+# ==============================
+node_modules/
+package-lock.json
+yarn.lock
+hardhat/artifacts/
+hardhat/cache/
+typechain-types/
+deployments/
+
+# ==============================
+# Docker
+# ==============================
+docker-compose.override.yml
+.dockerignore  # 如果你把 .dockerignore 也提交的话就不用忽略
+
+# ==============================
+# IDE / Editor
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Tests & Coverage
+# ==============================
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ==============================
+# Miscellaneous
+# ==============================
+*.bak
+*.tmp
+tmp/
+
+# IPFS local data (if running locally)
+.ipfs/
+
+# Blockchain artifacts from local deployment
+build/
+deployments/localhost/
