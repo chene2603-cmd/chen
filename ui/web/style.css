@@ -1,0 +1,475 @@
+/* ==================== 全局变量与重置 ==================== */
+:root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --primary-light: #a5b4fc;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #0f172a;
+    --bg-card: #1e293b;
+    --bg-input: #334155;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: #475569;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --transition: all 0.2s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* ==================== 头部 ==================== */
+.header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+}
+
+.logo {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.logo-icon {
+    margin-right: 6px;
+}
+
+.version {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--bg-input);
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+}
+
+.nav {
+    display: flex;
+    gap: 4px;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.nav-btn:hover {
+    color: var(--text);
+    background: var(--bg-input);
+}
+
+.nav-btn.active {
+    color: var(--primary-light);
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.wallet-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-wallet {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: var(--transition);
+}
+
+.btn-wallet:hover {
+    background: var(--primary-dark);
+}
+
+.wallet-address {
+    font-size: 0.8rem;
+    color: var(--success);
+    font-family: monospace;
+}
+
+/* ==================== 主内容区 ==================== */
+.main {
+    padding: 30px 20px 60px;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 30px;
+    box-shadow: var(--shadow);
+}
+
+.subtitle {
+    color: var(--text-muted);
+    margin: 8px 0 24px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* ==================== 预测表单 ==================== */
+.input-group {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+textarea, input[type="text"] {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    color: var(--text);
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+textarea:focus, input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.char-count {
+    position: absolute;
+    bottom: 10px;
+    right: 14px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: var(--transition);
+}
+
+.btn-secondary:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
+/* ==================== 加载动画 ==================== */
+.loading-spinner {
+    text-align: center;
+    padding: 30px;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==================== 预测结果 ==================== */
+.prediction-result {
+    margin-top: 30px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+}
+
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.badge.approved {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.badge.rejected {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+.probability-section {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.prob-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.prob-label {
+    color: var(--text-muted);
+}
+
+.prob-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary-light);
+}
+
+.prob-bar-container {
+    height: 10px;
+    background: var(--bg-input);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.prob-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--danger), var(--warning), var(--success));
+    border-radius: 5px;
+    transition: width 0.8s ease;
+}
+
+.prob-details {
+    display: flex;
+    gap: 24px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.agents-section, .reasoning-section, .evidence-section, .calibration-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+}
+
+.agents-section h4, .reasoning-section h4, .evidence-section h4, .calibration-section h4 {
+    margin-bottom: 10px;
+    color: var(--primary-light);
+}
+
+.agents-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.agent-card {
+    background: var(--bg-input);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    min-width: 150px;
+}
+
+.agent-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.agent-prob {
+    font-size: 1.2rem;
+    color: var(--primary-light);
+    font-weight: 700;
+}
+
+.result-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* ==================== 排行榜 ==================== */
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.leaderboard-table th, .leaderboard-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.leaderboard-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.leaderboard-table tbody tr:hover {
+    background: var(--bg);
+}
+
+/* ==================== 治理 ==================== */
+.governance-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+}
+
+.gov-tab {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.gov-tab.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.gov-panel {
+    display: none;
+}
+
+.gov-panel.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ==================== 关于 ==================== */
+.principles-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.principles-list li {
+    padding: 8px 0;
+    font-size: 1.05rem;
+}
+
+.genesis-quote {
+    font-style: italic;
+    color: var(--primary-light);
+    text-align: center;
+    margin-top: 30px;
+    padding: 20px;
+    border-left: 3px solid var(--primary);
+    background: var(--bg);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* ==================== 页脚 ==================== */
+.footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+}
+
+/* ==================== 工具类 ==================== */
+.hidden {
+    display: none !important;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 40px;
+}
