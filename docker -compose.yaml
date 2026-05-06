@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # ==================== OpenOracle 核心服务 ====================
+  oracle-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openoracle:latest
+    container_name: openoracle-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENORACLE_ENV=production
+      - LOG_LEVEL=INFO
+      - BLOCKCHAIN_RPC_URL=http://hardhat-node:8545
+      - IPFS_API_URL=http://ipfs:5001/api/v0
+    volumes:
+      - ./config:/app/config:ro
+      - oracle-logs:/app/logs
+      - oracle-data:/app/data
+    depends_on:
+      - hardhat-node
+      - ipfs
+    networks:
+      - openoracle-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==================== 本地 Hardhat 链（开发测试用） ====================
+  hardhat-node:
+    image: ethereumoptimism/hardhat:latest
+    container_name: openoracle-hardhat
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+    command: ["npx", "hardhat", "node", "--hostname", "0.0.0.0"]
+    volumes:
+      - ./src/contracts:/contracts
+      - hardhat-data:/data
+    networks:
+      - openoracle-net
+
+  # ==================== 合约部署服务（一次性） ====================
+  contract-deployer:
+    image: node:18-slim
+    container_name: openoracle-deployer
+    working_dir: /contracts
+    volumes:
+      - ./src/contracts:/contracts
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+        npm install @openzeppelin/contracts@4.9.5 &&
+        npx hardhat run /scripts/deploy_contracts.js --network localhost
+      "
+    depends_on:
+      - hardhat-node
+    networks:
+      - openoracle-net
+    profiles:
+      - deploy  # 只在需要时运行: docker compose --profile deploy up
+
+  # ==================== IPFS 节点 ====================
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: openoracle-ipfs
+    restart: unless-stopped
+    ports:
+      - "4001:4001"  # P2P
+      - "5001:5001"  # API
+      - "8080:8080"  # Gateway
+    environment:
+      - IPFS_PROFILE=server
+    volumes:
+      - ipfs-data:/data/ipfs
+    networks:
+      - openoracle-net
+
+  # ==================== Nginx 反向代理（可选） ====================
+  nginx:
+    image: nginx:alpine
+    container_name: openoracle-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      - oracle-api
+    networks:
+      - openoracle-net
+    profiles:
+      - prod  # 生产环境启用: docker compose --profile prod up
+
+  # ==================== 监控栈（可选） ====================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: openoracle-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - openoracle-net
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: openoracle-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - openoracle-net
+    profiles:
+      - monitoring
+
+# ==================== 卷与网络 ====================
+volumes:
+  oracle-logs:
+  oracle-data:
+  hardhat-data:
+  ipfs-data:
+  nginx-logs:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  openoracle-net:
+    driver: bridge
