@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+*.egg
+venv/
+.env
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志与数据
+logs/
+data/
+*.log
+
+# 文档
+docs/
+*.md
+
+# 测试
+tests/
+*.test.py
+
+# 其他
+.DS_Store
+node_modules/
