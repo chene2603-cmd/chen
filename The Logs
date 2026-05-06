@@ -1,0 +1,138 @@
+"""
+OpenOracle 日志格式规范
+基于结构化日志最佳实践
+"""
+import logging
+import json
+from datetime import datetime
+from typing import Dict, Any, Optional
+import structlog
+from pythonjsonlogger import jsonlogger
+
+class OpenOracleLogFormatter(jsonlogger.JsonFormatter):
+    """OpenOracle 自定义JSON日志格式"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+    def add_fields(self, log_record, record, message_dict):
+        """添加自定义字段"""
+        super().add_fields(log_record, record, message_dict)
+        
+        # 添加标准字段
+        if not log_record.get('timestamp'):
+            log_record['timestamp'] = datetime.utcnow().isoformat() + 'Z'
+        
+        if not log_record.get('level'):
+            log_record['level'] = record.levelname
+        
+        if not log_record.get('service'):
+            log_record['service'] = 'openoracle'
+        
+        if not log_record.get('module'):
+            log_record['module'] = record.module
+        
+        if not log_record.get('function'):
+            log_record['function'] = record.funcName
+        
+        if not log_record.get('line'):
+            log_record['line'] = record.lineno
+        
+        # 添加OpenOracle特定字段
+        if not log_record.get('component'):
+            # 从logger名称推断组件
+            log_record['component'] = self._infer_component(record.name)
+        
+        if not log_record.get('trace_id'):
+            # 可以从请求上下文中获取
+            log_record['trace_id'] = getattr(record, 'trace_id', 'N/A')
+        
+        if not log_record.get('prediction_id'):
+            log_record['prediction_id'] = getattr(record, 'prediction_id', 'N/A')
+        
+        if not log_record.get('question_id'):
+            log_record['question_id'] = getattr(record, 'question_id', 'N/A')
+    
+    def _infer_component(self, logger_name: str) -> str:
+        """从logger名称推断组件"""
+        components = {
+            'api': 'API服务',
+            'core': '核心引擎',
+            'prediction': '预测引擎',
+            'question': '问题处理器',
+            'evidence': '证据链',
+            'oracle': '许可证神谕',
+            'verification': '验证协议',
+            'community': '社区校准',
+            'governance': '治理层',
+            'monitor': '监控系统',
+            'database': '数据库',
+            'blockchain': '区块链'
+        }
+        
+        for key, value in components.items():
+            if key in logger_name.lower():
+                return value
+        
+        return 'unknown'
+
+
+# 日志级别定义
+LOG_LEVELS = {
+    'DEBUG': 10,      # 调试信息
+    'INFO': 20,       # 常规信息
+    'WARNING': 30,    # 警告信息
+    'ERROR': 40,      # 错误信息
+    'CRITICAL': 50,   # 严重错误
+}
+
+# 日志字段规范
+LOG_FIELD_SPEC = {
+    # 必需字段
+    'timestamp': 'ISO8601时间戳',
+    'level': '日志级别',
+    'message': '日志消息',
+    'service': '服务名称',
+    'component': '组件名称',
+    
+    # 可选字段
+    'module': '模块名称',
+    'function': '函数名称',
+    'line': '代码行号',
+    'trace_id': '请求追踪ID',
+    'question_id': '问题ID',
+    'prediction_id': '预测ID',
+    'user_id': '用户ID',
+    'session_id': '会话ID',
+    'duration_ms': '耗时(毫秒)',
+    'error_code': '错误代码',
+    'error_message': '错误消息',
+    'stack_trace': '堆栈跟踪',
+    'metadata': '额外元数据',
+    
+    # OpenOracle特定字段
+    'evidence_hash': '证据哈希',
+    'verification_status': '验证状态',
+    'confidence_score': '置信度',
+    'uncertainty_score': '不确定性',
+    'ethical_flag': '伦理标记',
+    'oracle_decision': '神谕决策',
+    'community_vote': '社区投票结果',
+    'brier_score': 'Brier分数',
+}
+
+
+def setup_logging(config_path: str = "config/logging.yaml") -> None:
+    """设置结构化日志"""
+    
+    # 基础配置
+    logging.basicConfig(level=logging.INFO)
+    
+    # 配置structlog
+    structlog.configure(
+        processors=[
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.TimeSt
